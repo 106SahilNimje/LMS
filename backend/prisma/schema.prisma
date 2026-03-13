@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  INSTRUCTOR
+  ADMIN
+}
+
+model User {
+  id           String        @id @default(uuid())
+  name         String
+  email        String        @unique
+  password     String
+  role         Role          @default(STUDENT)
+  enrollments  Enrollment[]
+  courses      Course[]      @relation("InstructorCourses")
+  certificates Certificate[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Course {
+  id          String       @id @default(uuid())
+  title       String
+  description String
+  price       Float
+  thumbnail   String?
+  instructorId String
+  instructor  User         @relation("InstructorCourses", fields: [instructorId], references: [id])
+  modules     Module[]
+  enrollments Enrollment[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Module {
+  id          String   @id @default(uuid())
+  title       String
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons     Lesson[]
+  order       Int      @default(0)
+}
+
+model Lesson {
+  id          String   @id @default(uuid())
+  title       String
+  videoUrl    String?
+  pdfUrl      String?
+  moduleId    String
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress    Progress[]
+  order       Int      @default(0)
+}
+
+model Enrollment {
+  id              String   @id @default(uuid())
+  userId          String
+  courseId        String
+  razorpayOrderId String?
+  paymentStatus   String   @default("PENDING") // PENDING, SUCCESS, FAILED
+  user            User     @relation(fields: [userId], references: [id])
+  course          Course   @relation(fields: [courseId], references: [id])
+  progress        Progress[]
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, courseId])
+}
+
+model Progress {
+  id           String     @id @default(uuid())
+  enrollmentId String
+  lessonId     String
+  isCompleted  Boolean    @default(false)
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lesson       Lesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, lessonId])
+}
+
+model Certificate {
+  id        String   @id @default(uuid())
+  userId    String
+  courseId  String
+  pdfUrl    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
